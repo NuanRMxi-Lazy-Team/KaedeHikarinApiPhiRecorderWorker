@@ -5,7 +5,7 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <DefaultItemExcludes>$(DefaultItemExcludes);KaedeHikarinApiPhiRecorderWorkerLib\**</DefaultItemExcludes>
+        <DefaultItemExcludes>$(DefaultItemExcludes);KaedeHikarinApiPhiRecorderWorkerLib\**;KaedeHikarinCialloTeam.PhiRecorder.Worker.Tests\**</DefaultItemExcludes>
         <UserSecretsId>dotnet-KaedeHikarinCialloTeam.PhiRecorder.Worker-338702c7-889f-4e56-972c-081401ff4b2e</UserSecretsId>
         <NativeLibSource>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\KaedeHikarinApiPhiRecorderWorkerLib'))</NativeLibSource>
         <PhiNativeProfile Condition="'$(Configuration)' == 'Release'">release</PhiNativeProfile>
