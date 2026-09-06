@@ -26,11 +26,14 @@ FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ffmpeg \
+        intel-media-va-driver \
         libasound2t64 \
         libegl1 \
         libgl1 \
         libgl1-mesa-dri \
         libglx-mesa0 \
+        libva2 \
+        libvpl2 \
         libx11-6 \
         libxcursor1 \
         libxinerama1 \

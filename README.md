@@ -67,9 +67,24 @@ docker run -d --name phi-worker \
   kaede-hikarin-api-worker:latest
 ```
 
-- 默认以 `xvfb-run` 提供虚拟显示并使用 Mesa 软件渲染；带 GPU 的宿主机可覆盖 `ENTRYPOINT` 并挂载宿主显示以获得硬件加速。
+- 默认入口脚本自管 Xvfb 虚拟显示并使用 Mesa 软件渲染（GL 侧）；带 GPU 的宿主机可覆盖 `ENTRYPOINT` 并挂载宿主显示以获得硬件 GL。
 - 多实例直接多 `docker run`，共享同一 RabbitMQ 队列即可水平扩展。
 - 所有配置项均可用 `Section__Key` 形式的环境变量覆盖（如 `PhiRecorder__FfmpegPath=ffmpeg`）。
+
+### 硬件编码（与 OpenGL 相互独立）
+
+渲染的 GL 上下文与 ffmpeg 视频编码是两条独立链路。镜像已内置 VAAPI/QSV 驱动（`intel-media-va-driver`、`libva2`、`libvpl2`），ffmpeg 启动时会按 `h264_nvenc → h264_qsv → h264_amf → h264_vaapi` 顺序**实际转码探测**可用编码器并选用第一个（HEVC 同理），全部不可用时回退 `libx264/libx265` 软件编码。使用硬件编码时挂载 GPU 设备：
+
+```bash
+docker run -d --name phi-worker \
+  --device /dev/dri \
+  -e RabbitMq__HostName=... \
+  kaede-phi-worker:latest
+```
+
+- 任务配置 `hardwareAccel: true` 才启用硬件编码探测；`customEncoder` 可强制指定编码器。
+- NVIDIA 宿主机走 `h264_nvenc`（需 nvidia-container-toolkit）；Intel/AMD 集显走 QSV/VAAPI（`--device /dev/dri`）。
+- 若部署机无任何可用硬件编码器，任务仍会以软件编码正常完成（日志可见 `no hardware encoder available, falling back`）。
 
 ## 测试
 
