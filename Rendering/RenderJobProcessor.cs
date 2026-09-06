@@ -166,9 +166,13 @@ public sealed class RenderJobProcessor
         }
         catch (Exception exception)
         {
+            var nativeError = _renderer.GetLastError();
+            var message = nativeError is null
+                ? exception.Message
+                : $"{exception.Message} | native: {nativeError}";
             _logger.LogError(exception, "job {JobId} failed", task.JobId);
             await PublishFinalAsync(
-                RenderEventMessage.Failed(task.JobId, RenderFailReason.RenderFailed, exception.Message),
+                RenderEventMessage.Failed(task.JobId, RenderFailReason.RenderFailed, message),
                 stoppingToken);
             throw;
         }
