@@ -69,4 +69,43 @@ public class ContractJsonTests
         Assert.Equal(message.JobId, deserialized.JobId);
         Assert.Equal("cancel", deserialized.Action);
     }
+
+    [Fact]
+    public void RenderConfigContract_Defaults_MatchUpstreamBasePreset()
+    {
+        var config = new RenderConfigContract();
+
+        Assert.Equal(1920u, config.Width);
+        Assert.Equal(1080u, config.Height);
+        Assert.Equal(60u, config.Fps);
+        Assert.Equal(1.0f, config.ChartRatio);
+        Assert.True(config.HardwareAccel);
+        Assert.True(config.DynamicBitrateControl);
+        Assert.Equal("28", config.Bitrate);
+        Assert.True(config.AggressiveChart);
+        Assert.Equal(RenderChallengeColorContract.Rainbow, config.ChallengeColor);
+        Assert.Equal(3u, config.ChallengeRank);
+        Assert.Equal(1.0f, config.NoteScale);
+        Assert.True(config.Particle);
+        Assert.Equal(16.0f, config.PlayerRks);
+        Assert.Equal(8u, config.SampleCount);
+        Assert.Equal(1.0f, config.Speed);
+        Assert.Equal(0.5f, config.VolumeMusic);
+        Assert.Equal(0.4f, config.VolumeSfx);
+        Assert.True(config.ForceLimit);
+        Assert.Equal(0.5f, config.LimitThreshold);
+        Assert.Equal(RenderAudioMixModeContract.Culling, config.AudioMixMode);
+        Assert.Equal("AUTOPLAY", config.Combo);
+        Assert.Equal("%date% %time% %info.name%_%level_prefix%", config.FileNameFormat);
+        Assert.True(config.RenderLine);
+        Assert.True(config.RenderExtra);
+        Assert.Equal(80f, config.BackgroundBlurriness);
+        Assert.Equal(5000ul, config.MaxParticles);
+
+        var deserialized = JsonSerializer.Deserialize<RenderConfigContract>("{}", ContractJson.Options);
+        Assert.NotNull(deserialized);
+        Assert.Equal(1920u, deserialized.Width);
+        Assert.Equal(60u, deserialized.Fps);
+        Assert.Equal(RenderAudioMixModeContract.Culling, deserialized.AudioMixMode);
+    }
 }
