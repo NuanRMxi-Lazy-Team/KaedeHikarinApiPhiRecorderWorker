@@ -36,7 +36,7 @@ public enum PhiJobState
 public enum PhiAudioMixMode
 {
     Traditional = 0,
-    Optimized = 1,
+    Culling = 1,
     Fft = 2,
 }
 

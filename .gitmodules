@@ -1,0 +1,3 @@
+[submodule "KaedeHikarinApiPhiRecorderWorkerLib"]
+	path = KaedeHikarinApiPhiRecorderWorkerLib
+	url = git@github.com:NuanRMxi-Lazy-Team/KaedeHikarinApiPhiRecorderWorkerLib.git
