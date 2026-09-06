@@ -71,6 +71,7 @@ public sealed class RenderJobProcessor
                 linkedCts.Token);
 
             var lastProgressPublish = DateTime.MinValue;
+            PhiJobEventData? terminalEvent = null;
             await foreach (var evt in job.Events.ReadAllAsync(stoppingToken))
             {
                 if (!evt.IsTerminal)
@@ -93,6 +94,7 @@ public sealed class RenderJobProcessor
                     continue;
                 }
 
+                terminalEvent = evt;
                 break;
             }
 
@@ -131,7 +133,11 @@ public sealed class RenderJobProcessor
 
                 case PhiJobState.Failed:
                 {
-                    var error = _renderer.GetLastError() ?? "native render failed";
+                    var error = terminalEvent?.Message;
+                    if (string.IsNullOrWhiteSpace(error))
+                    {
+                        error = _renderer.GetLastError() ?? "native render failed";
+                    }
                     await PublishFinalAsync(
                         RenderEventMessage.Failed(task.JobId, RenderFailReason.RenderFailed, error),
                         stoppingToken);
