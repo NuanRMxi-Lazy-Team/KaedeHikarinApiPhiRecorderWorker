@@ -39,9 +39,34 @@ Worker **只负责渲染**，对 API 内部一无所知；它只消费 API 通�
 
 ## 构建与部署
 
-- **一步构建**：`dotnet build` 自动触发 native 侧 `cargo build --locked`（工具链由 `KaedeHikarinApiPhiRecorderWorkerLib/rust-toolchain.toml` 固定，rustup 自动安装），并拷贝 `phi_recorder.dll`、`phi-renderer-host.exe` 与 assets 到输出目录；`dotnet publish` 同样包含。
-- 不使用容器：`dotnet publish` 产物部署到目标机（.NET 10 运行时 + ffmpeg），可多实例分布式部署共享同一 RabbitMQ 队列。
+- **一步构建**：`dotnet build` 自动触发 native 侧 `cargo build --locked`（工具链由 `KaedeHikarinApiPhiRecorderWorkerLib/rust-toolchain.toml` 固定，rustup 自动安装），并拷贝 `phi_recorder.dll` / `libphi_recorder.so`、`phi-renderer-host.exe` / `phi-renderer-host` 与 assets 到输出目录；`dotnet publish` 同样包含（Windows/Linux 产物自动按平台选择）。
+- 裸机部署：`dotnet publish` 产物部署到目标机（.NET 10 运行时 + ffmpeg），可多实例分布式部署共享同一 RabbitMQ 队列。
 - 配置参考 `appsettings.example.json`（`RabbitMq`、`Rendering`、`S3`、`PhiRecorder` 各节）。
+
+### Docker 部署（仅 Worker 本体）
+
+镜像内已附带 **ffmpeg**、Xvfb 与 Mesa 软渲染/X11/ALSA 运行库，开箱即用：
+
+```bash
+# 在 Worker 仓库根目录构建（会自动构建 native 并打入镜像）
+docker build -t kaede-phi-worker:latest .
+
+# 运行：通过环境变量注入 RabbitMQ / S3 / 超时等配置
+docker run -d --name phi-worker \
+  -e RabbitMq__HostName=rabbit.example.com \
+  -e RabbitMq__UserName=phi \
+  -e RabbitMq__Password=*** \
+  -e S3__AccessKey=*** -e S3__SecretKey=*** \
+  -e S3__ServiceUrl=https://<ACCOUNT_ID>.r2.cloudflarestorage.com \
+  -e S3__BucketName=phi-render-output \
+  -e Rendering__QueueWaitTimeout=00:30:00 \
+  -e Rendering__JobExecutionTimeout=00:30:00 \
+  kaede-phi-worker:latest
+```
+
+- 默认以 `xvfb-run` 提供虚拟显示并使用 Mesa 软件渲染；带 GPU 的宿主机可覆盖 `ENTRYPOINT` 并挂载宿主显示以获得硬件加速。
+- 多实例直接多 `docker run`，共享同一 RabbitMQ 队列即可水平扩展。
+- 所有配置项均可用 `Section__Key` 形式的环境变量覆盖（如 `PhiRecorder__FfmpegPath=ffmpeg`）。
 
 ## 测试
 

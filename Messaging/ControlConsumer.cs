@@ -38,7 +38,10 @@ public sealed class ControlConsumer : BackgroundService
             }
             catch (Exception exception)
             {
-                _logger.LogError(exception, "control consumer crashed, reconnecting");
+                _logger.LogWarning(
+                    "control consumer crashed ({Error}), reconnecting in {Delay}",
+                    exception.Message,
+                    _rabbitMqOptions.ReconnectDelay);
             }
 
             if (!stoppingToken.IsCancellationRequested)

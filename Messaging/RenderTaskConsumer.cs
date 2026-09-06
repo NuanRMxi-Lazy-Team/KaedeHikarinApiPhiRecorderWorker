@@ -48,7 +48,10 @@ public sealed class RenderTaskConsumer : BackgroundService
             }
             catch (Exception exception)
             {
-                _logger.LogError(exception, "render task consumer crashed, reconnecting");
+                _logger.LogWarning(
+                    "render task consumer crashed ({Error}), reconnecting in {Delay}",
+                    exception.Message,
+                    _rabbitMqOptions.ReconnectDelay);
             }
 
             if (!stoppingToken.IsCancellationRequested)

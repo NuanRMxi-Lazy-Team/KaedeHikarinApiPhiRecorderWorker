@@ -28,19 +28,21 @@
             <Output TaskParameter="ExitCode" PropertyName="_PhiCargoMissing" />
         </Exec>
         <Error Condition="'$(_PhiCargoMissing)' != '0'" Text="cargo was not found on PATH. Install the Rust toolchain (rust-version 1.77.2+, see KaedeHikarinApiPhiRecorderWorkerLib/AGENTS.md) or set SkipPhiNativeBuild=true to copy prebuilt native artifacts." />
-        <Exec Command="cargo build --locked $(PhiNativeCargoArgs)" WorkingDirectory="$(NativeLibSource)" ConsoleToMSBuild="true" />
+        <Exec Command="cargo build --locked $(PhiNativeCargoArgs) --workspace" WorkingDirectory="$(NativeLibSource)" ConsoleToMSBuild="true" />
     </Target>
 
     <Target Name="CopyPhiNativeRuntime" AfterTargets="Build">
         <ItemGroup>
-            <_PhiNativeDll Include="$(PhiNativeBinDir)\phi_recorder.dll" />
-            <_PhiNativeHost Include="$(PhiNativeBinDir)\phi-renderer-host.exe" />
+            <_PhiNativeLib Include="$(PhiNativeBinDir)\phi_recorder.dll" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+            <_PhiNativeLib Include="$(PhiNativeBinDir)\libphi_recorder.so" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
+            <_PhiNativeHost Include="$(PhiNativeBinDir)\phi-renderer-host.exe" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+            <_PhiNativeHost Include="$(PhiNativeBinDir)\phi-renderer-host" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
             <_PhiNativeAssets Include="$(NativeLibSource)\assets\**\*" />
         </ItemGroup>
         <MakeDir Directories="$(OutDir)native" />
-        <Copy SourceFiles="@(_PhiNativeDll);@(_PhiNativeHost)" DestinationFolder="$(OutDir)native" SkipUnchangedFiles="true" Condition="Exists('%(FullPath)')" />
+        <Copy SourceFiles="@(_PhiNativeLib);@(_PhiNativeHost)" DestinationFolder="$(OutDir)native" SkipUnchangedFiles="true" Condition="Exists('%(FullPath)')" />
         <Copy SourceFiles="@(_PhiNativeAssets)" DestinationFiles="$(OutDir)native\assets\%(RecursiveDir)%(Filename)%(Extension)" SkipUnchangedFiles="true" />
-        <Error Text="phi_recorder.dll not found at $(PhiNativeBinDir) after the native build. Check the cargo build output above, or set SkipPhiNativeBuild=true to use prebuilt native artifacts." Condition="!Exists('$(PhiNativeBinDir)\phi_recorder.dll')" />
+        <Error Text="phi_recorder native runtime not found at $(PhiNativeBinDir) after the native build. Check the cargo build output above, or set SkipPhiNativeBuild=true to use prebuilt native artifacts." Condition="!Exists('$(PhiNativeBinDir)\phi_recorder.dll') And !Exists('$(PhiNativeBinDir)\libphi_recorder.so')" />
     </Target>
 
     <Target Name="CopyPhiNativeRuntimeToPublish" AfterTargets="Publish">
