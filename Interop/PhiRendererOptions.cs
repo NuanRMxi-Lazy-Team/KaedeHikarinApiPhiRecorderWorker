@@ -14,22 +14,6 @@ public sealed class PhiRendererOptions
 
     public string RendererHostPath { get; set; } = "native/phi-renderer-host.exe";
 
-    public string? ProbeChartPath { get; set; }
-
-    public string? SmokeRenderChartPath { get; set; }
-
-    public string? SmokeRenderOutputPath { get; set; }
-
-    public uint SmokeWidth { get; set; } = 320;
-
-    public uint SmokeHeight { get; set; } = 180;
-
-    public uint SmokeFps { get; set; } = 30;
-
-    public double SmokeStartTime { get; set; }
-
-    public double SmokeEndTime { get; set; } = 0.5;
-
     internal string ResolveAssetsDirectory() => ResolvePath(AssetsDirectory, "native/assets");
 
     internal string ResolveFontsDirectory() => ResolvePath(FontsDirectory, ResolveAssetsDirectory());
