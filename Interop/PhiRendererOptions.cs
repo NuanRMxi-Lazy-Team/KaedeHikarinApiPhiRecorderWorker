@@ -12,7 +12,7 @@ public sealed class PhiRendererOptions
 
     public string TempDirectory { get; set; } = "";
 
-    public string RendererHostPath { get; set; } = "native/phi-renderer-host.exe";
+    public string RendererHostPath { get; set; } = Path.Combine("native", HostFileName);
 
     internal string ResolveAssetsDirectory() => ResolvePath(AssetsDirectory, "native/assets");
 
