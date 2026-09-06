@@ -14,6 +14,7 @@ public sealed class ResultUploader
     private readonly S3Options _s3Options;
     private readonly RenderWorkerOptions _workerOptions;
     private readonly ILogger<ResultUploader> _logger;
+    private readonly bool _useHttps;
 
     public ResultUploader(
         IOptions<S3Options> s3Options,
@@ -23,6 +24,10 @@ public sealed class ResultUploader
         _s3Options = s3Options.Value;
         _workerOptions = workerOptions.Value;
         _logger = logger;
+        _useHttps = _s3Options.ServiceUrl.StartsWith(
+            "https://",
+            StringComparison.OrdinalIgnoreCase
+        );
     }
 
     public async Task<UploadedResult> UploadAsync(
@@ -45,14 +50,31 @@ public sealed class ResultUploader
         };
 
         using var client = new AmazonS3Client(credentials, sdkConfig);
-        await client.PutObjectAsync(
-            new PutObjectRequest
-            {
-                BucketName = _s3Options.BucketName,
-                Key = objectKey,
-                FilePath = localFilePath,
-            },
-            cancellationToken);
+        var request = new PutObjectRequest
+        {
+            BucketName = _s3Options.BucketName,
+            Key = objectKey,
+            InputStream = new FileStream(
+                localFilePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                65536,
+                FileOptions.Asynchronous | FileOptions.SequentialScan),
+            ContentType = "video/mp4",
+            AutoCloseStream = true,
+            // R2/MinIO 等兼容存储不支持 STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER
+            // 签名（AWSSDK v4 默认行为），禁用分块编码；HTTPS 端点（R2）另关闭负载签名。
+            UseChunkEncoding = false,
+        };
+        if (_useHttps)
+        {
+            // R2 不支持 Streaming SigV4，必须禁用负载签名（仅 HTTPS 端点允许）
+            request.DisablePayloadSigning = true;
+        }
+        request.DisableDefaultChecksumValidation = true;
+
+        await client.PutObjectAsync(request, cancellationToken);
         _logger.LogInformation("render output uploaded to {Bucket}/{Key}", _s3Options.BucketName, objectKey);
 
         var expiresAt = DateTime.UtcNow.Add(_workerOptions.OutputUrlLifetime);
@@ -62,7 +84,7 @@ public sealed class ResultUploader
                 BucketName = _s3Options.BucketName,
                 Key = objectKey,
                 Expires = expiresAt,
-                Protocol = Protocol.HTTPS,
+                Protocol = _useHttps ? Protocol.HTTPS : Protocol.HTTP,
             });
         return new UploadedResult(presignedUrl, new DateTimeOffset(expiresAt));
     }
