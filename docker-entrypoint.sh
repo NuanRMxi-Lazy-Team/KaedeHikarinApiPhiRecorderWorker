@@ -1,11 +1,7 @@
 #!/bin/sh
 set -e
 
-Xvfb :99 -screen 0 1280x720x24 -nolisten tcp >/dev/null 2>&1 &
-XVFB_PID=$!
-trap 'kill $XVFB_PID 2>/dev/null || true' EXIT
-
-export DISPLAY=:99
-sleep 2
-
+# Linux headless rendering uses an EGL desktop OpenGL pbuffer and does not
+# require DISPLAY, X11, or Xvfb. GPU visibility is provided by the container
+# runtime, for example --gpus all or --device /dev/dri/renderD128.
 exec dotnet KaedeHikarinCialloTeam.PhiRecorder.Worker.dll

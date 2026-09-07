@@ -21,7 +21,7 @@ RUN cargo build --locked --release --workspace --manifest-path KaedeHikarinApiPh
 COPY . .
 RUN dotnet publish KaedeHikarinCialloTeam.PhiRecorder.Worker.csproj -c Release -o /app/publish -p:SkipPhiNativeBuild=true
 
-# 运行阶段：.NET 10 运行时 + ffmpeg + 无头渲染所需的 X11/Mesa/ALSA 依赖
+# 运行阶段：.NET 10 运行时 + ffmpeg + EGL/Mesa/ALSA 依赖
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -41,8 +41,6 @@ RUN apt-get update \
         libxrandr2 \
         libxi6 \
         procps \
-        xauth \
-        xvfb \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -53,5 +51,5 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s \
     CMD pgrep -x dotnet > /dev/null || exit 1
 
-# 入口脚本自管 Xvfb 虚拟显示（Mesa 软渲染）。有 GPU 的宿主机可覆盖 ENTRYPOINT 并使用宿主显示。
+# 入口脚本使用 EGL pbuffer 离屏渲染，不启动 Xvfb。GPU 由容器运行时透传。
 ENTRYPOINT ["docker-entrypoint.sh"]

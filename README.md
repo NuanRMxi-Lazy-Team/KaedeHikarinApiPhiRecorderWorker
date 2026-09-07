@@ -48,7 +48,7 @@ Worker **只负责渲染**，对 API 内部一无所知；它只消费 API 通�
 
 ### Docker 部署（仅 Worker 本体）
 
-镜像内已附带 **ffmpeg**、Xvfb 与 Mesa 软渲染/X11/ALSA 运行库，开箱即用：
+镜像内已附带 **ffmpeg**、EGL/Mesa DRI/ALSA 运行库，默认使用无窗口的 EGL desktop OpenGL pbuffer 渲染：
 
 ```bash
 # 在 Worker 仓库根目录构建（会自动构建 native 并打入镜像）
@@ -67,7 +67,9 @@ docker run -d --name phi-worker \
   kaede-hikarin-api-worker:latest
 ```
 
-- 默认入口脚本自管 Xvfb 虚拟显示并使用 Mesa 软件渲染（GL 侧）；带 GPU 的宿主机可覆盖 `ENTRYPOINT` 并挂载宿主显示以获得硬件 GL。
+- 默认入口不启动 Xvfb，也不要求 `DISPLAY`。Linux 上会优先通过 EGL device 选择硬件 OpenGL；没有可见硬件时 `auto` 模式允许软件 EGL。
+- `PHI_RENDERER_GRAPHICS_MODE=hardware` 可禁止软件 renderer；检测到 `llvmpipe`、`softpipe`、`swrast` 或 SwiftShader 时任务会明确失败。
+- Intel/AMD Linux 上 Mesa 的 `iris`/`radeonsi` 属于硬件驱动，不应与 Mesa 软件 renderer 混为一谈。
 - 多实例直接多 `docker run`，共享同一 RabbitMQ 队列即可水平扩展。
 - 所有配置项均可用 `Section__Key` 形式的环境变量覆盖（如 `PhiRecorder__FfmpegPath=ffmpeg`）。
 
@@ -77,14 +79,18 @@ docker run -d --name phi-worker \
 
 ```bash
 docker run -d --name phi-worker \
-  --device /dev/dri \
+  --device /dev/dri/renderD128 \
+  --group-add "$(stat -c '%g' /dev/dri/renderD128)" \
+  -e PHI_RENDERER_GRAPHICS_MODE=hardware \
+  -e PHI_RENDERER_EGL_DEVICE=0 \
   -e RabbitMq__HostName=... \
   kaede-hikarin-api-worker:latest
 ```
 
 - 任务配置 `hardwareAccel: true` 才启用硬件编码探测；`customEncoder` 可强制指定编码器。
-- NVIDIA 宿主机走 `h264_nvenc`（需 nvidia-container-toolkit）；Intel/AMD 集显走 QSV/VAAPI（`--device /dev/dri`）。
+- NVIDIA 宿主机需要 nvidia-container-toolkit，并建议使用 `--gpus all -e NVIDIA_DRIVER_CAPABILITIES=graphics,video,compute,utility`；Intel/AMD 使用 render node 和 `render` 组权限。
 - 若部署机无任何可用硬件编码器，任务仍会以软件编码正常完成（日志可见 `no hardware encoder available, falling back`）。
+- CPU-only 部署可显式设置 `PHI_RENDERER_GRAPHICS_MODE=software`；软件 EGL 下仍应使用 `sampleCount=1`。
 
 ### Docker Compose 编排示例
 
