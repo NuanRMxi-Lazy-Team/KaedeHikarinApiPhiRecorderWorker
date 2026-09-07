@@ -79,12 +79,65 @@ docker run -d --name phi-worker \
 docker run -d --name phi-worker \
   --device /dev/dri \
   -e RabbitMq__HostName=... \
-  kaede-phi-worker:latest
+  kaede-hikarin-api-worker:latest
 ```
 
 - 任务配置 `hardwareAccel: true` 才启用硬件编码探测；`customEncoder` 可强制指定编码器。
 - NVIDIA 宿主机走 `h264_nvenc`（需 nvidia-container-toolkit）；Intel/AMD 集显走 QSV/VAAPI（`--device /dev/dri`）。
 - 若部署机无任何可用硬件编码器，任务仍会以软件编码正常完成（日志可见 `no hardware encoder available, falling back`）。
+
+### Docker Compose 编排示例
+
+以本目录为构建上下文（`docker compose -f docker-compose.example.yml up -d`），
+示例含本地 RabbitMQ 与单个 Worker 实例；生产环境通常只保留 `worker` 服务并指向共享的 RabbitMQ。
+
+```yaml
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    ports:
+      - "5672:5672"      # AMQP
+      - "15672:15672"    # 管理界面
+    environment:
+      RABBITMQ_DEFAULT_USER: phi
+      RABBITMQ_DEFAULT_PASS: change-me
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kaede-phi-worker:latest
+    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+    environment:
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: phi
+      RabbitMq__Password: change-me
+      RabbitMq__VirtualHost: /
+      Rendering__QueueWaitTimeout: "00:30:00"
+      Rendering__JobExecutionTimeout: "00:30:00"
+      Rendering__OutputUrlLifetime: "7.00:00:00"
+      S3__AccessKey: ""
+      S3__SecretKey: ""
+      S3__ServiceUrl: ""
+      S3__BucketName: ""
+      S3__Region: auto
+      S3__ForcePathStyle: "false"
+    # 硬件编码需要将 GPU 设备透传进容器（Intel/AMD 集显）：
+    # devices:
+    #   - /dev/dri:/dev/dri
+    # 多实例水平扩展：docker compose up -d --scale worker=3
+
+volumes:
+  rabbitmq-data:
+```
+
+> Worker 与 API 通过 RabbitMQ 解耦通信，不依赖任何共享程序集；多个 `worker` 副本共享同一队列即可公平分发任务。
 
 ## 测试
 
